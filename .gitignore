@@ -1,0 +1,28 @@
+# CMake build directories (generated, not source)
+build/
+**/build/
+
+# Compiled object files
+*.o
+*.obj
+
+# Compiled static/shared libraries
+*.a
+*.so
+*.dll
+*.lib
+
+# Compiled executables (no extension on Linux, so list by common tutorial names
+# or just rely on build/ being ignored — this catches stray ones outside build/)
+*.exe
+*.out
+
+# CMake-specific cache/generated files if they ever end up outside build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Editor/IDE clutter
+.vscode/
+*.swp
