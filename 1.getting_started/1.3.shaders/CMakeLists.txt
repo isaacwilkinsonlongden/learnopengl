@@ -4,6 +4,9 @@ project(hello_window)
 # Your source file(s)
 add_executable(hello_window main.cpp glad.c)
 
+configure_file(shader.vs shader.vs COPYONLY)
+configure_file(shader.fs shader.fs COPYONLY)
+
 # Where to find headers (equivalent of -I)
 target_include_directories(hello_window PRIVATE $ENV{HOME}/dev/opengl-libs/Include)
 
