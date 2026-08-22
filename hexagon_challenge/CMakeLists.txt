@@ -5,6 +5,8 @@ project(hexagon_challenge)
 add_executable(hexagon_challenge main.cpp glad.c)
 
 # copy shaders to build
+configure_file(shader.vs shader.vs COPYONLY)
+configure_file(shader.fs shader.fs COPYONLY)
 
 # where to find headers
 target_include_directories(hexagon_challenge PRIVATE $ENV{HOME}/dev/opengl-libs/Include)
