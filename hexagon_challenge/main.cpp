@@ -62,8 +62,11 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -72,9 +75,15 @@ int main() {
         // input
         processInput(window);
 
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
         // render
         ourShader.use();
         glBindVertexArray(VAO);
+        double timeValue = glfwGetTime();
+        float brightness = static_cast<float>(sin(timeValue) / 2.0 + 0.5);
+        ourShader.setFloat("brightness", brightness);
         glDrawElements(GL_TRIANGLES, 18, GL_UNSIGNED_INT, 0);
 
         glfwSwapBuffers(window);
@@ -95,7 +104,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 
 std::vector<float> generateHexagonVertices(float radius, float startAngle) {
     std::vector<float> vertices;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 6; i++) {
         vertices.push_back(0.0f);
     }
     for (int i = 0; i < 6; i++) {
@@ -105,6 +114,19 @@ std::vector<float> generateHexagonVertices(float radius, float startAngle) {
         vertices.push_back(x);
         vertices.push_back(y);
         vertices.push_back(0.0f);
+        if (i == 0 || i == 3) {
+            vertices.push_back(1.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+        } else if (i == 1 || i == 4) {
+            vertices.push_back(0.0f);
+            vertices.push_back(1.0f);
+            vertices.push_back(0.0f);
+        } else {
+            vertices.push_back(0.0f);
+            vertices.push_back(0.0f);
+            vertices.push_back(1.0f);
+        }
     }
     return vertices;
 }
