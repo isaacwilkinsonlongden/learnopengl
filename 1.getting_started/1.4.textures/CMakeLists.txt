@@ -7,6 +7,7 @@ add_executable(hello_textures main.cpp glad.c stb_image.cpp)
 configure_file(shader.vs shader.vs COPYONLY)
 configure_file(shader.fs shader.fs COPYONLY)
 configure_file(container.jpg container.jpg COPYONLY)
+configure_file(awesomeface.png awesomeface.png COPYONLY)
 
 # Where to find headers (equivalent of -I)
 target_include_directories(hello_textures PRIVATE $ENV{HOME}/dev/opengl-libs/Include)
