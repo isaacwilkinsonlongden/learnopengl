@@ -1,6 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include "include/shader.h"
+
 #include <iostream>
 
 void processInput(GLFWwindow *window);
