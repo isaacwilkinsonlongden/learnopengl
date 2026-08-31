@@ -1,5 +1,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include "stb_image.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -7,10 +8,18 @@
 
 #include "include/shader.h"
 #include "include/camera.h"
+#include "objects/room.h"
 
 #include <iostream>
 
+// struct for creating VAO and VBO for an world object
+struct ObjectBuffers {
+    unsigned int VAO;
+    unsigned int VBO;
+};
+
 void processInput(GLFWwindow *window);
+ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -64,55 +73,35 @@ int main() {
     // build and compile our shader program
     Shader ourShader("shader.vs", "shader.fs");
 
-    // set up vertex data, buffers and configure vertex attributes 
-    float vertices[] = {
-        // side one long
-         0.9f,  0.3f, -0.5f, // top right   
-         0.9f, -0.3f, -0.5f, // bottom right  
-        -0.9f,  0.3f, -0.5f, // top left 
-        -0.9f, -0.3f, -0.5f, // bottom left 
-        // side two long
-         0.9f,  0.3f,  0.5f, // top right  
-         0.9f, -0.3f,  0.5f, // bottom right  
-        -0.9f,  0.3f,  0.5f, // top left 
-        -0.9f, -0.3f,  0.5f, // bottom left
-    };
+    // setup VAO's and VBO's for world objects 
+    ObjectBuffers wallBuffers = setupObjectBuffers(wallVertices, sizeof(wallVertices));
+    ObjectBuffers floorCeilingBuffers = setupObjectBuffers(floorCeilingVertices, sizeof(floorCeilingVertices));
 
-    unsigned int indices[] = {
-        // side one long
-        0, 1, 2,  
-        1, 2, 3,   
-        // side two long 
-        4, 5, 6,
-        5, 6, 7,
-        // side three short 
-        0, 1, 4,
-        1, 4, 5,
-        // side four short
-        2, 3, 6,
-        3, 6, 7,
-        // top
-        0, 2, 4,
-        2, 4, 6,
-        // bottom
-        1, 3, 5,
-        3, 5, 7,
-    };
-    unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    // bind the vertex array object first, then bind and set vertex buffers, and then configure vertex attributes 
-    glBindVertexArray(VAO);
+    // load and create a texture 
+    unsigned int texture1;
+    glGenTextures(1, &texture1);
+    glBindTexture(GL_TEXTURE_2D, texture1);
+    // set the texture wrapping/filtering options
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // load and generate the textures
+    stbi_set_flip_vertically_on_load(true);
+    // load brick wall texture
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("Bricks097_1K-JPG_Color.jpg", &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
+    // tell OpenGL for each sampler to which texture unit it belongs to
+    ourShader.use();
+    ourShader.setInt("texture1", 0);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -140,11 +129,14 @@ int main() {
         ourShader.setMat4("view", view);
 
         // model transformation 
-        glBindVertexArray(VAO);
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
-        ourShader.setMat4("model", model);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glBindVertexArray(wallBuffers.VAO);
+        ourShader.setMat4("model", glm::mat4(1.0f));
+        glDrawArrays(GL_TRIANGLES, 0, 24);
+
+        glBindTexture(GL_TEXTURE_2D, 0);
+        glBindVertexArray(floorCeilingBuffers.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, 12);
 
         // glfw: swap buffers and poll IO events (keys pressed/ released, mouse moved etc.) 
         glfwSwapBuffers(window);
@@ -152,9 +144,10 @@ int main() {
     }
 
     // de-allocate all resources once they've outlived their purpose 
-    glDeleteVertexArrays(1, &VAO);  
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
+    glDeleteVertexArrays(1, &wallBuffers.VAO);  
+    glDeleteVertexArrays(1, &floorCeilingBuffers.VAO);  
+    glDeleteBuffers(1, &wallBuffers.VBO);
+    glDeleteBuffers(1, &floorCeilingBuffers.VBO);
 
     // glfw: terminate, clearing all previously allocated glfw resources 
     glfwTerminate();
@@ -174,6 +167,25 @@ void processInput(GLFWwindow *window) {
         camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
+}
+
+// setup VAO and VBO for a world object
+ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize) {
+    ObjectBuffers buffers;
+
+    glGenVertexArrays(1, &buffers.VAO);
+    glGenBuffers(1, &buffers.VBO);
+    glBindVertexArray(buffers.VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO);
+    glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    return buffers;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
