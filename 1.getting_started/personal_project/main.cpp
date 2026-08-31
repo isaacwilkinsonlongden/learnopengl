@@ -66,15 +66,37 @@ int main() {
 
     // set up vertex data, buffers and configure vertex attributes 
     float vertices[] = {
-         0.9f,  0.7f, 0.0f, // top right 
-         0.9f, -0.7f, 0.0f, // bottom right 
-        -0.9f,  0.7f, 0.0f, // top left 
-        -0.9f, -0.7f, 0.0f  // bottom left 
+        // side one long
+         0.9f,  0.3f, -0.5f, // top right   
+         0.9f, -0.3f, -0.5f, // bottom right  
+        -0.9f,  0.3f, -0.5f, // top left 
+        -0.9f, -0.3f, -0.5f, // bottom left 
+        // side two long
+         0.9f,  0.3f,  0.5f, // top right  
+         0.9f, -0.3f,  0.5f, // bottom right  
+        -0.9f,  0.3f,  0.5f, // top left 
+        -0.9f, -0.3f,  0.5f, // bottom left
     };
 
     unsigned int indices[] = {
-        0, 1, 2, // first triangle 
-        1, 2, 3  // second triangle 
+        // side one long
+        0, 1, 2,  
+        1, 2, 3,   
+        // side two long 
+        4, 5, 6,
+        5, 6, 7,
+        // side three short 
+        0, 1, 4,
+        1, 4, 5,
+        // side four short
+        2, 3, 6,
+        3, 6, 7,
+        // top
+        0, 2, 4,
+        2, 4, 6,
+        // bottom
+        1, 3, 5,
+        3, 5, 7,
     };
     unsigned int VBO, VAO, EBO;
     glGenVertexArrays(1, &VAO);
@@ -117,11 +139,12 @@ int main() {
         glm::mat4 view = camera.GetViewMatrix();
         ourShader.setMat4("view", view);
 
+        // model transformation 
         glBindVertexArray(VAO);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f));
         ourShader.setMat4("model", model);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 
         // glfw: swap buffers and poll IO events (keys pressed/ released, mouse moved etc.) 
         glfwSwapBuffers(window);
