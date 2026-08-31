@@ -20,6 +20,7 @@ struct ObjectBuffers {
 
 void processInput(GLFWwindow *window);
 ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize);
+unsigned int loadTexture(const char* texturePath);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -78,26 +79,9 @@ int main() {
     ObjectBuffers floorCeilingBuffers = setupObjectBuffers(floorCeilingVertices, sizeof(floorCeilingVertices));
 
     // load and create a texture 
-    unsigned int texture1;
-    glGenTextures(1, &texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    // set the texture wrapping/filtering options
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load and generate the textures
     stbi_set_flip_vertically_on_load(true);
-    // load brick wall texture
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load("Bricks097_1K-JPG_Color.jpg", &width, &height, &nrChannels, 0);
-    if (data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    } else {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
+    unsigned int textureBrick = loadTexture("Bricks097_1K-JPG_Color.jpg");
+    unsigned int textureConcrete = loadTexture("Concrete042A_1K-JPG_Color.jpg");
 
     // tell OpenGL for each sampler to which texture unit it belongs to
     ourShader.use();
@@ -117,9 +101,6 @@ int main() {
         glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // activate shader 
-        ourShader.use();
-
         // pass projection matrix to shader 
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         ourShader.setMat4("projection", projection);
@@ -129,12 +110,12 @@ int main() {
         ourShader.setMat4("view", view);
 
         // model transformation 
-        glBindTexture(GL_TEXTURE_2D, texture1);
+        glBindTexture(GL_TEXTURE_2D, textureBrick);
         glBindVertexArray(wallBuffers.VAO);
         ourShader.setMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 24);
-
-        glBindTexture(GL_TEXTURE_2D, 0);
+        
+        glBindTexture(GL_TEXTURE_2D, textureConcrete);
         glBindVertexArray(floorCeilingBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, 12);
 
@@ -186,6 +167,28 @@ ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize) {
     glBindVertexArray(0);
 
     return buffers;
+}
+
+unsigned int loadTexture(const char* texturePath) {
+    unsigned int texture;
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 0);
+    if (data) {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    } else {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
+
+    return texture;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
