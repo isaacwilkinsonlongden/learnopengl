@@ -9,6 +9,7 @@
 #include "include/shader.h"
 #include "include/camera.h"
 #include "objects/room.h"
+#include "objects/skate_box.h"
 
 #include <iostream>
 
@@ -77,11 +78,13 @@ int main() {
     // setup VAO's and VBO's for world objects 
     ObjectBuffers wallBuffers = setupObjectBuffers(wallVertices, sizeof(wallVertices));
     ObjectBuffers floorCeilingBuffers = setupObjectBuffers(floorCeilingVertices, sizeof(floorCeilingVertices));
+    ObjectBuffers skateBoxBuffers = setupObjectBuffers(skateBoxVertices, sizeof(skateBoxVertices));
 
     // load and create a texture 
     stbi_set_flip_vertically_on_load(true);
     unsigned int textureBrick = loadTexture("Bricks097_1K-JPG_Color.jpg");
     unsigned int textureConcrete = loadTexture("Concrete042A_1K-JPG_Color.jpg");
+    unsigned int textureWood = loadTexture("Wood039_1K-JPG_Color.jpg");
 
     // tell OpenGL for each sampler to which texture unit it belongs to
     ourShader.use();
@@ -118,6 +121,14 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, textureConcrete);
         glBindVertexArray(floorCeilingBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, 12);
+
+        glBindTexture(GL_TEXTURE_2D, textureWood);
+        glBindVertexArray(skateBoxBuffers.VAO);
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::translate(model, glm::vec3(0.0f, -3.0f, -4.0f));
+        ourShader.setMat4("model", model);
+        glDrawArrays(GL_TRIANGLES, 0, 135);
 
         // glfw: swap buffers and poll IO events (keys pressed/ released, mouse moved etc.) 
         glfwSwapBuffers(window);
