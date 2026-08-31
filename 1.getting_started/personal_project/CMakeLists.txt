@@ -4,6 +4,10 @@
  # source files 
  add_executable(gallery main.cpp glad.c)
 
+ # copy shader files to build directory
+ configure_file(shader.vs shader.vs COPYONLY)
+ configure_file(shader.fs shader.fs COPYONLY)
+
  # where to find headers 
  target_include_directories(gallery PRIVATE $ENV{HOME}/dev/opengl-libs/Include)
 
