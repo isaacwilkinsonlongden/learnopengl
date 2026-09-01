@@ -27,6 +27,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// light source world space coordinates 
+glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+
 int main() {
     // glfw: initialize and configure
     glfwInit();
@@ -61,6 +64,7 @@ int main() {
 
     // build and compile our shader program
     Shader lightingShader("lighting_shader.vs", "lighting_shader.fs");
+    Shader lsShader("lighting_shader.vs", "ls_shader.fs");
 
     float vertices[] = {
     -0.5f, -0.5f, -0.5f,  
@@ -101,15 +105,26 @@ int main() {
     -0.5f,  0.5f, -0.5f
     };
 
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
+    // container
+    unsigned int VBO, cubeVAO;
+    glGenVertexArrays(1, &cubeVAO);
     glGenBuffers(1, &VBO);
 
-    glBindVertexArray(VAO);
+    glBindVertexArray(cubeVAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+
+    // light source 
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
+    // we only need to bind to the VBO, the containers VBOs data already contains the data
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // set the vertex attribute 
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
@@ -138,14 +153,26 @@ int main() {
         glm::mat4 model = glm::mat4(1.0f);
         lightingShader.setMat4("model", model);
 
-        glBindVertexArray(VAO);
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        lsShader.use();
+        lsShader.setMat4("projection", projection);
+        lsShader.setMat4("view", view);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f));
+        lsShader.setMat4("model", model);
+
+        glBindVertexArray(lightVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &cubeVAO);
     glDeleteBuffers(1, &VBO);
 
     glfwTerminate();
