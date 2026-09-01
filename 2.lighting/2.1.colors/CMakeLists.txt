@@ -6,6 +6,7 @@
 
  # copy shader files to build directory
  configure_file(lighting_shader.vs lighting_shader.vs COPYONLY)
+ configure_file(lighting_shader.fs lighting_shader.fs COPYONLY)
 
  # where to find headers 
  target_include_directories(colors PRIVATE $ENV{HOME}/dev/opengl-libs/Include)
