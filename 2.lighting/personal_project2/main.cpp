@@ -42,6 +42,9 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
+// light position 
+glm::vec3 lightPos(0.0f, 2.0f, 0.0f); 
+
 int main() {
     // glfw: initialize and configure
     glfwInit();
@@ -95,6 +98,8 @@ int main() {
     // tell OpenGL for each sampler to which texture unit it belongs to
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
+    objectShader.setVec3("lightPos", lightPos);
+    objectShader.setVec3("lightColor", 1.0f, 1.0f, 0.9f);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -132,8 +137,8 @@ int main() {
         glBindTexture(GL_TEXTURE_2D, textureWood);
         glBindVertexArray(skateBoxBuffers.VAO);
         glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-3.0f, -2.5f, 0.0f));
         model = glm::rotate(model, glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::translate(model, glm::vec3(0.0f, -2.5f, -4.0f));
         objectShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 135);
 
@@ -142,7 +147,7 @@ int main() {
         lightShader.setMat4("projection", projection);
         lightShader.setMat4("view", view);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 2.45f, 0.0f));
+        model = glm::translate(model, lightPos);
         lightShader.setMat4("model", model);
         glBindVertexArray(LightBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -187,10 +192,12 @@ ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize) {
     glBindVertexArray(buffers.VAO);
     glBindBuffer(GL_ARRAY_BUFFER, buffers.VBO);
     glBufferData(GL_ARRAY_BUFFER, verticesSize, vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
