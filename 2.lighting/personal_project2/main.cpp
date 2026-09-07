@@ -14,16 +14,23 @@
 
 #include <iostream>
 
-// struct for creating VAO and VBO for an world object
+// struct bundling the VAO/VBO pair for a world object
 struct ObjectBuffers {
     unsigned int VAO;
     unsigned int VBO;
 };
 
+// input handling
 void processInput(GLFWwindow *window);
+
+// buffer setup helpers (upload vertex data, configure vertex attributes)
 ObjectBuffers setupObjectBuffers(float vertices[], size_t verticesSize);
 ObjectBuffers setupLightBuffers(float vertices[], size_t verticesSize);
+
+// texture loading
 unsigned int loadTexture(const char* texturePath);
+
+// GLFW callbacks
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
@@ -44,6 +51,7 @@ float lastFrame = 0.0f;
 
 // light position 
 glm::vec3 lightPos(0.0f, 2.0f, 0.0f); 
+glm::vec3 lightColor(1.0f, 1.0f, 0.9f);
 
 int main() {
     // glfw: initialize and configure
@@ -89,17 +97,31 @@ int main() {
     // setup VAO's and VBO's for light objects
     ObjectBuffers LightBuffers = setupLightBuffers(lightVertices, sizeof(lightVertices));
 
-    // load and create a texture 
+    // load and create textures: one diffuse color map + one grayscale specular
+    // map per material, each pair loaded together below
     stbi_set_flip_vertically_on_load(true);
+
+    // bricks (used on the walls)
     unsigned int textureBrick = loadTexture("Bricks097_1K-JPG_Color.jpg");
+    unsigned int textureBrickSpecmap = loadTexture("Bricks097_1K-JPG_Color_specmap.png");
+    // concrete (used on the floor/ceiling)
     unsigned int textureConcrete = loadTexture("Concrete042A_1K-JPG_Color.jpg");
+    unsigned int textureConcreteSpecmap = loadTexture("Concrete042A_1K-JPG_Color_specmap.png");
+    // wood (used on the skate box)
     unsigned int textureWood = loadTexture("Wood039_1K-JPG_Color.jpg");
+    unsigned int textureWoodSpecmap = loadTexture("Wood039_1K-JPG_Color_specmap.png");
 
     // tell OpenGL for each sampler to which texture unit it belongs to
     objectShader.use();
     objectShader.setInt("material.diffuse", 0);
-    objectShader.setVec3("lightPos", lightPos);
-    objectShader.setVec3("lightColor", 1.0f, 1.0f, 0.9f);
+    objectShader.setInt("material.specular", 1);
+    objectShader.setFloat("material.shininess", 64.0f);
+
+    // light properties: fixed for this scene, so set once here rather than every frame
+    objectShader.setVec3("light.position", lightPos);
+    objectShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
+    objectShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
+    objectShader.setVec3("light.specular", 0.2f, 0.2f, 0.2f);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -117,6 +139,7 @@ int main() {
 
         // pass projection matrix to shader 
         objectShader.use();
+        objectShader.setVec3("viewPos", camera.Position);
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         objectShader.setMat4("projection", projection);
 
@@ -124,17 +147,28 @@ int main() {
         glm::mat4 view = camera.GetViewMatrix();
         objectShader.setMat4("view", view);
 
-        // model transformation 
+        // walls (brick texture), drawn at the origin with no extra transform
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureBrick);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureBrickSpecmap);
         glBindVertexArray(wallBuffers.VAO);
         objectShader.setMat4("model", glm::mat4(1.0f));
         glDrawArrays(GL_TRIANGLES, 0, 24);
-        
+
+        // floor & ceiling (concrete texture)
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureConcrete);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureConcreteSpecmap);
         glBindVertexArray(floorCeilingBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, 12);
 
+        // skate box (wood texture), offset to one side of the room and rotated to face it
+        glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, textureWood);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureWoodSpecmap);
         glBindVertexArray(skateBoxBuffers.VAO);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(-3.0f, -2.5f, 0.0f));
@@ -142,8 +176,9 @@ int main() {
         objectShader.setMat4("model", model);
         glDrawArrays(GL_TRIANGLES, 0, 135);
 
-        // draw light object
+        // draw light object (drawn last, using its own unlit shader)
         lightShader.use();
+        lightShader.setVec3("lightColor", lightColor);
         lightShader.setMat4("projection", projection);
         lightShader.setMat4("view", view);
         model = glm::mat4(1.0f);
@@ -157,11 +192,15 @@ int main() {
         glfwPollEvents();
     }
 
-    // de-allocate all resources once they've outlived their purpose 
-    glDeleteVertexArrays(1, &wallBuffers.VAO);  
-    glDeleteVertexArrays(1, &floorCeilingBuffers.VAO);  
+    // de-allocate all resources once they've outlived their purpose
+    glDeleteVertexArrays(1, &wallBuffers.VAO);
+    glDeleteVertexArrays(1, &floorCeilingBuffers.VAO);
+    glDeleteVertexArrays(1, &skateBoxBuffers.VAO);
+    glDeleteVertexArrays(1, &LightBuffers.VAO);
     glDeleteBuffers(1, &wallBuffers.VBO);
     glDeleteBuffers(1, &floorCeilingBuffers.VBO);
+    glDeleteBuffers(1, &skateBoxBuffers.VBO);
+    glDeleteBuffers(1, &LightBuffers.VBO);
 
     // glfw: terminate, clearing all previously allocated glfw resources 
     glfwTerminate();
@@ -221,26 +260,54 @@ ObjectBuffers setupLightBuffers(float vertices[], size_t verticesSize) {
     return buffers;
 }
 
-unsigned int loadTexture(const char* texturePath) {
-    unsigned int texture;
+// utility function for loading a 2D texture from file
+// ---------------------------------------------------
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
 
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load(texturePath, &width, &height, &nrChannels, 0);
-    if (data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        // pick the upload format based on how many channels stb_image found in the file
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;   // grayscale, e.g. the specular maps
+        else if (nrComponents == 3)
+            format = GL_RGB;   // no alpha, e.g. the diffuse JPGs
+        else if (nrComponents == 4)
+            format = GL_RGBA;  // has alpha
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
-    } else {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
 
-    return texture;
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        // a single-channel (GL_RED) texture is sampled by GLSL as (r, 0, 0, 1) by
+        // default, so without this, reading it as a vec3 in the shader would only
+        // fill the red channel. Swizzling broadcasts the one channel across R/G/B
+        // so it behaves like a proper grayscale value when sampled.
+        if (format == GL_RED)
+        {
+            GLint swizzle[] = { GL_RED, GL_RED, GL_RED, GL_ONE };
+            glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+        }
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
