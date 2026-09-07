@@ -94,7 +94,7 @@ int main() {
 
     // tell OpenGL for each sampler to which texture unit it belongs to
     objectShader.use();
-    objectShader.setInt("texture1", 0);
+    objectShader.setInt("material.diffuse", 0);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
