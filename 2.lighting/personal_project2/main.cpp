@@ -119,9 +119,12 @@ int main() {
 
     // light properties: fixed for this scene, so set once here rather than every frame
     objectShader.setVec3("light.position", lightPos);
-    objectShader.setVec3("light.ambient", 0.2f, 0.2f, 0.2f);
-    objectShader.setVec3("light.diffuse", 0.5f, 0.5f, 0.5f);
+    objectShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
+    objectShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f);
     objectShader.setVec3("light.specular", 0.2f, 0.2f, 0.2f);
+    objectShader.setFloat("light.constant",  1.0f);
+    objectShader.setFloat("light.linear",    0.045f);
+    objectShader.setFloat("light.quadratic", 0.0075f);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
