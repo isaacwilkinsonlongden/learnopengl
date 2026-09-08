@@ -33,9 +33,12 @@ void main() {
     vec3 texColor = texture(material.diffuse, TexCoord).rgb;
     vec3 ambient = light.ambient * texColor;
 
-    // diffuse: brighter the more directly the surface faces the light
+    // diffuse: brighter the more directly the surface faces the light.
+    // lightVec is reused below for attenuation, so compute it once.
     vec3 norm = normalize(Normal);
-    vec3 lightDir = normalize(light.position - FragPos);
+    vec3 lightVec = light.position - FragPos;
+    float distance = length(lightVec);
+    vec3 lightDir = lightVec / distance;
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * light.diffuse * texColor;
 
@@ -43,10 +46,9 @@ void main() {
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess); // exponent controls how tight/sharp the highlight is
-    vec3 specular = light.specular * spec * vec3(texture(material.specular, TexCoord));
+    vec3 specular = light.specular * spec * texture(material.specular, TexCoord).rgb;
 
     // attenuation: lighting decreases over distance from the point light 
-    float distance = length(light.position - FragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
     ambient  *= attenuation; 
     diffuse  *= attenuation;

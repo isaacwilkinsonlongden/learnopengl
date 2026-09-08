@@ -16,5 +16,7 @@ void main() {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
     TexCoord = aTexCoord;
     FragPos = vec3(model * vec4(aPos, 1.0));
+    // mat3(model) is only a valid normal matrix while model has no non-uniform
+    // scale, which holds for every object in this scene (translate + rotate only)
     Normal = mat3(model) * aNormal;
 }

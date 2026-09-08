@@ -38,16 +38,18 @@ public:
             // convert stream into string
             vertexCode   = vShaderStream.str();
             fragmentCode = fShaderStream.str();
-        } catch(std::ifstream::failure e) {
-            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ" << std::endl;
+        } catch (const std::ifstream::failure& e) {
+            // name the file that failed -- otherwise a missing/unreadable shader
+            // just falls through and compiles empty source, producing a confusing
+            // pile of GLSL errors instead of the actual cause
+            std::cout << "ERROR::SHADER::FILE_NOT_SUCCESSFULLY_READ: " << vertexPath
+                      << " / " << fragmentPath << "\n" << e.what() << std::endl;
         }
         const char* vShaderCode = vertexCode.c_str();
         const char* fShaderCode = fragmentCode.c_str();
         
         // 2. compile shaders 
         unsigned int vertex, fragment;
-        int success;
-        char infoLog[512];
 
         // vertex shader 
         vertex = glCreateShader(GL_VERTEX_SHADER);
@@ -69,6 +71,14 @@ public:
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
+    ~Shader() {
+        glDeleteProgram(ID);
+    }
+    // a Shader owns its program object, so copying one would leave two objects
+    // deleting the same program
+    Shader(const Shader&) = delete;
+    Shader& operator=(const Shader&) = delete;
+
     // use/activate the shader 
     void use() {
         glUseProgram(ID);
@@ -96,7 +106,7 @@ public:
     }
 
 private:
-    // utility function for checking chader compilation/linking errors 
+    // utility function for checking shader compilation/linking errors 
     void checkCompileErrors(unsigned int shader, std::string type) {
         int success;
         char infoLog[1024];

@@ -1,5 +1,5 @@
-#ifndef RAMP_STAIRS_H
-#define RAMP_STAIRS_H
+#ifndef SKATE_BOX_H
+#define SKATE_BOX_H
  
 // A solid combo box: a sloped ramp on one end, a flat platform in the
 // middle, and a staircase on the other end (tread 5's top quad was
