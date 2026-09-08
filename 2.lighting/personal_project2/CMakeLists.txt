@@ -27,6 +27,8 @@ foreach(TEXTURE
     Concrete042A_1K_specmap.png
     Wood039_1K-JPG_Color.jpg
     Wood039_1K_specmap.png
+    Metal063_1K-JPG_Color.jpg
+    Metal063_1K_specmap.png
 )
     configure_file(assets/${TEXTURE} ${TEXTURE} COPYONLY)
 endforeach()

@@ -11,8 +11,12 @@
 #include "objects/room.h"
 #include "objects/skate_box.h"
 #include "objects/light_bar.h"
+#include "objects/light_frame.h"
+#include "objects/light_hanger.h"
 
 #include <iostream>
+#include <iterator>
+#include <string>
 
 // struct bundling the VAO/VBO pair for a world object, plus how many vertices
 // it holds (derived from the buffer size, so draw calls can't drift out of sync
@@ -58,9 +62,18 @@ bool firstMouse = true;
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-// light position 
-glm::vec3 lightPos(0.0f, 2.0f, 0.0f); 
-glm::vec3 lightColor(1.0f, 1.0f, 0.9f);
+// light positions: three point lights spread along the light bar, which spans
+// z -2.5 to 2.5, so all three sit inside the geometry that represents them
+const glm::vec3 lightPositions[] = {
+    glm::vec3(0.0f, 2.0f,  0.0f),
+    glm::vec3(0.0f, 2.0f,  2.0f),
+    glm::vec3(0.0f, 2.0f, -2.0f)
+};
+// must match NR_POINT_LIGHTS in shader.fs -- a light added here without
+// bumping that #define would simply never be read by the shader
+constexpr int NR_POINT_LIGHTS = static_cast<int>(std::size(lightPositions));
+
+const glm::vec3 lightColor(1.0f, 1.0f, 0.9f);
 
 int main() {
     // glfw: initialize and configure
@@ -108,8 +121,11 @@ int main() {
     ObjectBuffers floorCeilingBuffers = setupBuffers(floorCeilingVertices, sizeof(floorCeilingVertices), true);
     ObjectBuffers skateBoxBuffers = setupBuffers(skateBoxVertices, sizeof(skateBoxVertices), true);
 
-    // setup VAO's and VBO's for light objects
+    // setup VAO's and VBO's for light objects. the bar itself is unlit (position
+    // only); the frame around it is a normal lit object.
     ObjectBuffers lightBuffers = setupBuffers(lightVertices, sizeof(lightVertices), false);
+    ObjectBuffers lightFrameBuffers = setupBuffers(lightFrameVertices, sizeof(lightFrameVertices), true);
+    ObjectBuffers lightHangerBuffers = setupBuffers(lightHangerVertices, sizeof(lightHangerVertices), true);
 
     // load and create textures: one diffuse color map + one grayscale specular
     // map per material, each pair loaded together below
@@ -124,6 +140,9 @@ int main() {
     // wood (used on the skate box)
     unsigned int textureWood = loadTexture("Wood039_1K-JPG_Color.jpg");
     unsigned int textureWoodSpecmap = loadTexture("Wood039_1K_specmap.png");
+    // metal (used on the light bar's frame)
+    unsigned int textureMetal = loadTexture("Metal063_1K-JPG_Color.jpg");
+    unsigned int textureMetalSpecmap = loadTexture("Metal063_1K_specmap.png");
 
     objectShader.use();
 
@@ -133,21 +152,28 @@ int main() {
     objectShader.setInt("material.diffuse", 0);
     objectShader.setInt("material.specular", 1);
 
-    // light properties: fixed for this scene, so set once here rather than every frame
-    objectShader.setVec3("light.position", lightPos);
-    objectShader.setVec3("light.ambient",  0.2f, 0.2f, 0.2f);
-    objectShader.setVec3("light.diffuse",  0.5f, 0.5f, 0.5f);
-    objectShader.setVec3("light.specular", 0.5f, 0.5f, 0.5f);
-    objectShader.setFloat("light.constant",  1.0f);
-    objectShader.setFloat("light.linear",    0.045f);
-    objectShader.setFloat("light.quadratic", 0.0075f);
+    // scene ambient: one constant term for the whole scene rather than one per
+    // light, so it doesn't scale with the light count or fall off with distance
+    objectShader.setVec3("ambient", 0.1f, 0.1f, 0.1f);
+
+    // light properties: fixed for this scene, so set once here rather than every frame.
+    // all three lights are identical apart from position.
+    for (int i = 0; i < NR_POINT_LIGHTS; i++) {
+        std::string base = "light[" + std::to_string(i) + "].";
+        objectShader.setVec3(base + "position", lightPositions[i]);
+        objectShader.setVec3(base + "diffuse",  0.5f, 0.5f, 0.5f);
+        objectShader.setVec3(base + "specular", 0.5f, 0.5f, 0.5f);
+        objectShader.setFloat(base + "constant",  1.0f);
+        objectShader.setFloat(base + "linear",    0.09f);
+        objectShader.setFloat(base + "quadratic", 0.032f);
+    }
 
     // the light object's color is constant too
     lightShader.use();
     lightShader.setVec3("lightColor", lightColor);
 
     // clear color never changes either
-    glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 
     // render loop
     while (!glfwWindowShouldClose(window)) {
@@ -207,13 +233,37 @@ int main() {
         glBindVertexArray(skateBoxBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, skateBoxBuffers.vertexCount);
 
+        // light bar's metal frame. shares the bar's model matrix so the two stay
+        // together; drawn here, last of the lit objects, to avoid an extra
+        // shader switch.
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, textureMetal);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, textureMetalSpecmap);
+        objectShader.setFloat("material.shininess", 64.0f);
+        glm::mat4 lightModel = glm::translate(glm::mat4(1.0f), lightPositions[0]);
+        objectShader.setMat4("model", lightModel);
+        glBindVertexArray(lightFrameBuffers.VAO);
+        glDrawArrays(GL_TRIANGLES, 0, lightFrameBuffers.vertexCount);
+
+        // the two rods suspending the fixture from the ceiling. same metal
+        // textures and shininess as the frame, still bound from the draw above.
+        // starting at i = 1 skips the centre light: only the two outer lights
+        // get a rod.
+        glBindVertexArray(lightHangerBuffers.VAO);
+        for (int i = 1; i < NR_POINT_LIGHTS; i++) {
+            objectShader.setMat4("model", glm::translate(glm::mat4(1.0f), lightPositions[i]));
+            glDrawArrays(GL_TRIANGLES, 0, lightHangerBuffers.vertexCount);
+        }
+
         // draw light object (drawn last, using its own unlit shader)
         lightShader.use();
         lightShader.setMat4("projection", projection);
         lightShader.setMat4("view", view);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
-        lightShader.setMat4("model", model);
+        // one bar covers all three lights (they're spread along its length), so
+        // it and its frame are positioned from light 0 -- move that light and
+        // both move with it
+        lightShader.setMat4("model", lightModel);
         glBindVertexArray(lightBuffers.VAO);
         glDrawArrays(GL_TRIANGLES, 0, lightBuffers.vertexCount);
 
@@ -227,10 +277,14 @@ int main() {
     glDeleteVertexArrays(1, &floorCeilingBuffers.VAO);
     glDeleteVertexArrays(1, &skateBoxBuffers.VAO);
     glDeleteVertexArrays(1, &lightBuffers.VAO);
+    glDeleteVertexArrays(1, &lightFrameBuffers.VAO);
+    glDeleteVertexArrays(1, &lightHangerBuffers.VAO);
     glDeleteBuffers(1, &wallBuffers.VBO);
     glDeleteBuffers(1, &floorCeilingBuffers.VBO);
     glDeleteBuffers(1, &skateBoxBuffers.VBO);
     glDeleteBuffers(1, &lightBuffers.VBO);
+    glDeleteBuffers(1, &lightFrameBuffers.VBO);
+    glDeleteBuffers(1, &lightHangerBuffers.VBO);
 
     // glfw: terminate, clearing all previously allocated glfw resources 
     glfwTerminate();
